@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>주사위 숫자 만들기 🎲</title>
+<style>
+  :root {
+    --bg: #f4f7fb;
+    --card: #ffffff;
+    --primary: #4f46e5;
+    --primary-light: #e0e7ff;
+    --accent: #f59e0b;
+    --success: #10b981;
+    --danger: #ef4444;
+    --text: #1e293b;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
+  body { margin: 0; padding: 10px; background: var(--bg); color: var(--text); display: flex; justify-content: center; min-height: 100dvh; }
+  .app { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 10px; }
+
+  .header {
+    background: var(--card); border-radius: 14px; padding: 10px 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    display: flex; justify-content: space-between; align-items: center; gap: 6px;
+  }
+  .room-box { display: flex; align-items: center; gap: 5px; font-size: 12px; flex: 1; }
+  .room-box input {
+    width: 62px; padding: 5px 6px; border: 1.5px solid #cbd5e1; border-radius: 7px;
+    font-weight: bold; text-transform: uppercase; text-align: center; font-size: 13px;
+  }
+  .header-actions { display: flex; gap: 5px; }
+  .btn-sm {
+    padding: 6px 9px; border: none; border-radius: 8px; background: var(--primary);
+    color: white; font-weight: bold; font-size: 12px; cursor: pointer;
+  }
+  .btn-sm.secondary { background: #64748b; }
+
+  .tabs {
+    display: flex; gap: 6px; background: var(--card); border-radius: 14px; padding: 5px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .tab {
+    flex: 1; padding: 10px 4px; border: none; border-radius: 10px;
+    background: transparent; font-weight: 700; font-size: 15px; cursor: pointer;
+    color: #64748b;
+  }
+  .tab.active { background: var(--primary); color: white; }
+  .tab-content { display: flex; flex-direction: column; gap: 10px; }
+
+  .target-panel {
+    background: linear-gradient(135deg, #4f46e5, #6366f1); color: white;
+    border-radius: 16px; padding: 14px 16px;
+    box-shadow: 0 4px 10px rgba(79,70,229,0.25);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .target-label { font-size: 14px; opacity: 0.9; }
+  .target-num { font-size: 40px; font-weight: 900; line-height: 1; }
+  .timer { font-size: 13px; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 16px; }
+
+  .section {
+    background: var(--card); border-radius: 14px; padding: 12px 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  }
+  .section-title {
+    font-size: 13px; font-weight: 700; color: #475569; margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  /* 주사위 2x3 + 연산기호 2x2 */
+  .board-row {
+    display: flex; gap: 10px; align-items: stretch;
+  }
+  .dice-area {
+    flex: 3;
+    display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 8px;
+  }
+  .ops-area {
+    flex: 2;
+    display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); gap: 8px;
+  }
+  .num-card, .op-btn {
+    aspect-ratio: 1; border-radius: 12px; font-size: 22px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; user-select: none; border: 2px solid; position: relative;
+  }
+  .num-card {
+    background: #fffbeb; border-color: #fcd34d; color: #b45309;
+  }
+  .num-card.selected {
+    border-color: var(--primary); background: var(--primary-light); color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.25);
+  }
+  .num-card.used {
+    background: #f1f5f9; border-color: #e2e8f0; color: var(--muted);
+    cursor: not-allowed; opacity: 0.6;
+  }
+  .num-card.used::after {
+    content: '✓'; position: absolute; top: 2px; right: 4px; font-size: 11px; color: var(--success);
+  }
+  .op-btn {
+    background: #fff7ed; border-color: #fb923c; color: #c2410c;
+  }
+  .op-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+  .created-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 42px; align-items: center; }
+  .created-card {
+    padding: 8px 12px; border-radius: 10px; border: 2px solid #93c5fd;
+    background: #eff6ff; color: #1d4ed8; font-weight: 800; font-size: 18px;
+    cursor: pointer; display: flex; flex-direction: column; align-items: center;
+  }
+  .created-card small { font-size: 10px; font-weight: normal; color: #60a5fa; }
+  .created-card.selected { border-color: var(--primary); background: var(--primary-light); box-shadow: 0 0 0 3px rgba(79,70,229,0.25); }
+  .created-card.used { background: #f1f5f9; border-color: #e2e8f0; color: var(--muted); cursor: not-allowed; text-decoration: line-through; }
+
+  /* 계산값 영역 (1행) */
+  .calc-row {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--card); border-radius: 14px; padding: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.06); border: 2px solid #e2e8f0;
+  }
+  .slot {
+    min-width: 52px; height: 48px; padding: 0 10px; border-radius: 10px;
+    border: 2px dashed #cbd5e1; background: #f8fafc;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 900; cursor: pointer;
+  }
+  .slot.filled { border-style: solid; border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+  .slot.op { min-width: 44px; border-color: #fb923c; color: #c2410c; background: #fff7ed; }
+  .swap-btn {
+    border: 1px solid #cbd5e1; background: white; border-radius: 50%; width: 28px; height: 28px;
+    font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .preview-val {
+    font-size: 22px; font-weight: 900; padding: 8px 14px; border-radius: 10px;
+    background: #ecfdf5; color: var(--success); border: 2px solid #a7f3d0;
+    min-width: 70px; text-align: center; height: 48px; display: flex; align-items: center; justify-content: center;
+  }
+  .preview-val.invalid { background: #fef2f2; color: var(--danger); border-color: #fecaca; font-size: 12px; font-weight: 700; }
+
+  .action-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .btn-confirm {
+    padding: 12px; border: none; border-radius: 10px; background: var(--success);
+    color: white; font-size: 15px; font-weight: 800; cursor: pointer;
+  }
+  .btn-confirm:disabled { background: #cbd5e1; cursor: not-allowed; }
+  .btn-sub {
+    padding: 12px 4px; border: none; border-radius: 10px; background: #e2e8f0;
+    color: #334155; font-size: 12px; font-weight: 700; cursor: pointer;
+  }
+
+  .board-row-lb {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 4px; border-bottom: 1px solid #f1f5f9; font-size: 14px;
+  }
+  .badge-win { background: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 10px; font-weight: 700; font-size: 12px; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.6);
+    display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50;
+  }
+  .modal {
+    background: white; border-radius: 18px; padding: 24px; max-width: 360px; width: 100%;
+    text-align: center; box-shadow: 0 20px 25px rgba(0,0,0,0.2);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="room-box">
+      <span>방:</span>
+      <input id="roomInput" value="HOME1" maxlength="8">
+      <span>이름:</span>
+      <input id="nameInput" value="우리아이" maxlength="8" style="text-transform:none;">
+      <button class="btn-sm" onclick="joinRoom()">입장</button>
+    </div>
+    <div class="header-actions">
+      <button class="btn-sm secondary" onclick="showHint()">힌트</button>
+      <button class="btn-sm" onclick="nextRound()">새 문제</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabBtnGame" onclick="switchTab('game')">🎲 게임</button>
+    <button class="tab" id="tabBtnFriends" onclick="switchTab('friends')">👨‍👩‍👧‍👦 친구들</button>
+  </div>
+
+  <div id="tab-game" class="tab-content">
+    <div class="target-panel">
+      <div>
+        <div class="target-label">🎯 목표 숫자 (<span id="roundLabel">1R</span>)</div>
+        <div style="font-size:12px; opacity:0.85; margin-top:4px;">주사위는 각 1번씩만 사용</div>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+        <div class="target-num" id="targetNum">00</div>
+        <div class="timer" id="timerDisplay">⏱ 0초</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span>🎲 주사위 (<b id="remainCount" style="color:var(--primary)">6</b>)</span>
+        <span style="font-size:11px; color:#94a3b8;">노랑=미사용</span>
+      </div>
+      <div class="board-row">
+        <div class="dice-area" id="diceGrid"></div>
+        <div class="ops-area">
+          <button class="op-btn" data-op="+" onclick="selectOp('+')">+</button>
+          <button class="op-btn" data-op="-" onclick="selectOp('-')">-</button>
+          <button class="op-btn" data-op="×" onclick="selectOp('×')">×</button>
+          <button class="op-btn" data-op="÷" onclick="selectOp('÷')">÷</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">
+        <span>🧩 계산해서 만든 숫자</span>
+        <span style="font-size:11px; color:#94a3b8;">만든 숫자도 이어서 사용 가능</span>
+      </div>
+      <div class="created-list" id="createdList">
+        <span style="font-size:12px; color:#94a3b8;">아직 만든 숫자가 없어요</span>
+      </div>
+    </div>
+
+    <div class="calc-row">
+      <div class="slot" id="slotA" onclick="clearSlot('A')">?</div>
+      <button class="swap-btn" title="자리 바꾸기" onclick="swapSlots()">↔</button>
+      <div class="slot op" id="slotOp" onclick="clearSlot('Op')">?</div>
+      <div class="slot" id="slotB" onclick="clearSlot('B')">?</div>
+      <span style="font-weight:900; font-size:22px;">=</span>
+      <div class="preview-val" id="previewVal">미리보기</div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-confirm" id="confirmBtn" disabled onclick="applyCalc()">이 숫자로 만들기!</button>
+      <button class="btn-sub" onclick="undo()">↩ 되돌리기</button>
+      <button class="btn-sub" onclick="resetPuzzle()">🔄 초기화</button>
+    </div>
+  </div>
+
+  <div id="tab-friends" class="tab-content" style="display:none;">
+    <div class="section">
+      <div class="section-title">
+        <span>👨‍👩‍👧‍👦 함께 푸는 친구들 (최대 10명)</span>
+        <button class="btn-sm" onclick="shareResult()">결과 공유 📋</button>
+      </div>
+      <div id="leaderboard"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="winModal">
+  <div class="modal">
+    <div style="font-size:48px;">🎉</div>
+    <h2 style="margin:8px 0; font-size:22px;">목표 숫자 완성!</h2>
+    <p id="winSummary" style="color:#475569; font-size:14px; line-height:1.5;"></p>
+    <div style="display:flex; gap:8px; justify-content:center; margin-top:16px;">
+      <button class="btn-confirm" onclick="shareResult()">결과 복사</button>
+      <button class="btn-sub" onclick="closeModalAndNext()">다음 문제</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function hashStr(str) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function createRNG(seed) {
+    return function() {
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function generatePuzzle(room, round) {
+    const rng = createRNG(hashStr(`${room.toUpperCase()}-R${round}`));
+    const diceValues = Array.from({ length: 6 }, () => Math.floor(rng() * 6) + 1);
+    const reachable = new Map();
+    for (let t = 0; t < 400; t++) {
+      let pool = diceValues.map(v => ({ val: v }));
+      let steps = [];
+      while (pool.length > 1) {
+        const a = pool.splice(Math.floor(rng() * pool.length), 1)[0];
+        const b = pool.splice(Math.floor(rng() * pool.length), 1)[0];
+        const ops = [
+          { val: a.val + b.val, text: `${a.val} + ${b.val} = ${a.val + b.val}` },
+          { val: a.val * b.val, text: `${a.val} × ${b.val} = ${a.val * b.val}` }
+        ];
+        if (a.val >= b.val) ops.push({ val: a.val - b.val, text: `${a.val} - ${b.val} = ${a.val - b.val}` });
+        else ops.push({ val: b.val - a.val, text: `${b.val} - ${a.val} = ${b.val - a.val}` });
+        if (b.val !== 0 && a.val % b.val === 0) ops.push({ val: a.val / b.val, text: `${a.val} ÷ ${b.val} = ${a.val / b.val}` });
+        else if (a.val !== 0 && b.val % a.val === 0) ops.push({ val: b.val / a.val, text: `${b.val} ÷ ${a.val} = ${b.val / a.val}` });
+        const chosen = ops[Math.floor(rng() * ops.length)];
+        steps.push(chosen.text);
+        if (chosen.val >= 1 && chosen.val <= 100 && !reachable.has(chosen.val)) {
+          reachable.set(chosen.val, [...steps]);
+        }
+        pool.push({ val: chosen.val });
+      }
+    }
+    const keys = Array.from(reachable.keys());
+    const target = keys[Math.floor(rng() * keys.length)];
+    return { diceValues, target, hintSteps: reachable.get(target) };
+  }
+
+  let round = 1;
+  let target = 0;
+  let hintSteps = [];
+  let dice = [];
+  let created = [];
+  let logs = [];
+  let history = [];
+  let nextCreatedId = 1;
+  let selA = null;
+  let selB = null;
+  let selOp = null;
+  let startTime = Date.now();
+  let timerInterval = null;
+  let solved = false;
+  let solvedTime = 0;
+  let players = [];
+
+  function switchTab(tab) {
+    document.getElementById('tab-game').style.display = tab === 'game' ? 'flex' : 'none';
+    document.getElementById('tab-friends').style.display = tab === 'friends' ? 'flex' : 'none';
+    document.getElementById('tabBtnGame').classList.toggle('active', tab === 'game');
+    document.getElementById('tabBtnFriends').classList.toggle('active', tab === 'friends');
+  }
+
+  function initRound() {
+    const room = document.getElementById('roomInput').value.trim() || 'HOME1';
+    const puzzle = generatePuzzle(room, round);
+    target = puzzle.target;
+    hintSteps = puzzle.hintSteps;
+    dice = puzzle.diceValues.map((v, i) => ({ id: `d${i}`, value: v, used: false }));
+    created = [];
+    logs = [];
+    history = [];
+    nextCreatedId = 1;
+    selA = selB = selOp = null;
+    solved = false;
+    startTime = Date.now();
+    document.getElementById('roundLabel').textContent = `${round}R`;
+    document.getElementById('targetNum').textContent = target;
+    document.getElementById('winModal').style.display = 'none';
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      if (!solved) {
+        const sec = Math.floor((Date.now() - startTime) / 1000);
+        document.getElementById('timerDisplay').textContent = `⏱ ${sec}초`;
+      }
+    }, 500);
+    const myName = document.getElementById('nameInput').value.trim() || '나';
+    players = [{ name: myName, status: '도전 중...', time: null, expr: '' }];
+    renderAll();
+  }
+
+  function joinRoom() { round = 1; initRound(); }
+  function nextRound() { round++; initRound(); }
+
+  function getItem(id) {
+    return dice.find(d => d.id === id) || created.find(c => c.id === id);
+  }
+
+  function selectNumber(id) {
+    const item = getItem(id);
+    if (!item || item.used || solved) return;
+    if (selA === id) selA = null;
+    else if (selB === id) selB = null;
+    else if (!selA) selA = id;
+    else if (!selB) selB = id;
+    else selB = id;
+    renderAll();
+  }
+
+  function selectOp(op) {
+    if (solved) return;
+    selOp = (selOp === op) ? null : op;
+    renderAll();
+  }
+
+  function clearSlot(which) {
+    if (which === 'A') selA = null;
+    if (which === 'B') selB = null;
+    if (which === 'Op') selOp = null;
+    renderAll();
+  }
+
+  function swapSlots() {
+    [selA, selB] = [selB, selA];
+    renderAll();
+  }
+
+  function evaluatePreview() {
+    if (!selA || !selB || !selOp) return { valid: false, msg: '숫자 2개와 기호 선택' };
+    const a = getItem(selA).value;
+    const b = getItem(selB).value;
+    if (selOp === '+') return { valid: true, value: a + b };
+    if (selOp === '×') return { valid: true, value: a * b };
+    if (selOp === '-') {
+      if (a < b) return { valid: false, msg: '작은 수에서 못 빼요 (↔)' };
+      return { valid: true, value: a - b };
+    }
+    if (selOp === '÷') {
+      if (b === 0) return { valid: false, msg: '0으로 나눌 수 없어요' };
+      if (a % b !== 0) return { valid: false, msg: '딱 나누어떨어지지 않아요' };
+      return { valid: true, value: a / b };
+    }
+    return { valid: false, msg: '오류' };
+  }
+
+  function applyCalc() {
+    const res = evaluatePreview();
+    if (!res.valid) return;
+    history.push({
+      dice: JSON.parse(JSON.stringify(dice)),
+      created: JSON.parse(JSON.stringify(created)),
+      logs: [...logs]
+    });
+    const itemA = getItem(selA);
+    const itemB = getItem(selB);
+    itemA.used = true;
+    itemB.used = true;
+    const expr = `${itemA.value} ${selOp} ${itemB.value}`;
+    created.push({ id: `c${nextCreatedId++}`, value: res.value, label: expr, used: false });
+    logs.push(`${expr} = ${res.value}`);
+    selA = selB = selOp = null;
+    renderAll();
+    if (res.value === target) {
+      solved = true;
+      solvedTime = Math.floor((Date.now() - startTime) / 1000);
+      const myName = document.getElementById('nameInput').value.trim() || '나';
+      players[0] = { name: myName, status: '성공!', time: solvedTime, expr: logs.join(' / ') };
+      renderLeaderboard();
+      document.getElementById('winSummary').innerHTML =
+        `<b>${solvedTime}초</b> 만에 목표 숫자 <b>${target}</b>을(를) 만들었어요!<br><br>` +
+        `<div style="background:#f8fafc; padding:10px; border-radius:10px; font-size:13px;">${logs.join('<br>')}</div>`;
+      document.getElementById('winModal').style.display = 'flex';
+    }
+  }
+
+  function undo() {
+    if (history.length === 0 || solved) return;
+    const prev = history.pop();
+    dice = prev.dice;
+    created = prev.created;
+    logs = prev.logs;
+    selA = selB = selOp = null;
+    renderAll();
+  }
+
+  function resetPuzzle() {
+    if (solved) return;
+    dice.forEach(d => d.used = false);
+    created = [];
+    logs = [];
+    history = [];
+    selA = selB = selOp = null;
+    renderAll();
+  }
+
+  function showHint() {
+    alert(`💡 이렇게 만들어볼 수 있어요!\n\n1단계: ${hintSteps[0]}`);
+  }
+
+  function shareResult() {
+    const room = document.getElementById('roomInput').value.trim() || 'HOME1';
+    const myName = document.getElementById('nameInput').value.trim() || '나';
+    const diceText = dice.map(d => d.value).join(', ');
+    const text =
+      `🎲 [주사위 숫자 만들기 - 방:${room} / ${round}R]\n` +
+      `🎯 목표: ${target} | 주사위: [${diceText}]\n` +
+      `👤 ${myName}: ${solved ? `✅ ${solvedTime}초 만에 성공!` : '도전 중'}\n` +
+      `📝 풀이:\n${logs.map((l, i) => `${i+1}. ${l}`).join('\n')}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => alert('풀이 결과가 복사되었습니다! 가족 카톡방에 붙여넣기 해보세요.'));
+    } else {
+      prompt('아래 내용을 복사해서 공유하세요:', text);
+    }
+  }
+
+  function closeModalAndNext() {
+    document.getElementById('winModal').style.display = 'none';
+    nextRound();
+  }
+
+  function renderAll() {
+    const diceGrid = document.getElementById('diceGrid');
+    diceGrid.innerHTML = '';
+    let remain = 0;
+    dice.forEach(d => {
+      if (!d.used) remain++;
+      const btn = document.createElement('div');
+      btn.className = 'num-card' + (d.used ? ' used' : '') + (selA === d.id || selB === d.id ? ' selected' : '');
+      btn.textContent = d.value;
+      btn.onclick = () => selectNumber(d.id);
+      diceGrid.appendChild(btn);
+    });
+    document.getElementById('remainCount').textContent = remain;
+
+    const createdList = document.getElementById('createdList');
+    if (created.length === 0) {
+      createdList.innerHTML = '<span style="font-size:12px; color:#94a3b8;">아직 만든 숫자가 없어요</span>';
+    } else {
+      createdList.innerHTML = '';
+      created.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'created-card' + (c.used ? ' used' : '') + (selA === c.id || selB === c.id ? ' selected' : '');
+        div.innerHTML = `<span>${c.value}</span><small>${c.label}</small>`;
+        div.onclick = () => selectNumber(c.id);
+        createdList.appendChild(div);
+      });
+    }
+
+    const sA = document.getElementById('slotA');
+    const sB = document.getElementById('slotB');
+    const sOp = document.getElementById('slotOp');
+    sA.textContent = selA ? getItem(selA).value : '?';
+    sA.className = 'slot' + (selA ? ' filled' : '');
+    sB.textContent = selB ? getItem(selB).value : '?';
+    sB.className = 'slot' + (selB ? ' filled' : '');
+    sOp.textContent = selOp || '?';
+
+    document.querySelectorAll('.op-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.op === selOp);
+    });
+
+    const preview = evaluatePreview();
+    const pvEl = document.getElementById('previewVal');
+    const confirmBtn = document.getElementById('confirmBtn');
+    if (preview.valid) {
+      pvEl.textContent = preview.value;
+      pvEl.className = 'preview-val';
+      confirmBtn.disabled = false;
+    } else {
+      pvEl.textContent = preview.msg;
+      pvEl.className = 'preview-val invalid';
+      confirmBtn.disabled = true;
+    }
+
+    renderLeaderboard();
+  }
+
+  function renderLeaderboard() {
+    const board = document.getElementById('leaderboard');
+    board.innerHTML = players.map(p => `
+      <div class="board-row-lb">
+        <div><b>${p.name}</b> <span style="color:#64748b; font-size:12px;">${p.expr ? `(${p.expr})` : ''}</span></div>
+        <div>${p.time !== null ? `<span class="badge-win">⏱ ${p.time}초 성공</span>` : '<span style="color:#94a3b8;">푸는 중...</span>'}</div>
+      </div>
+    `).join('');
+  }
+
+  initRound();
+</script>
+</body>
+</html>
